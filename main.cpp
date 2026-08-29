@@ -1,4 +1,8 @@
 #include "tgaimage.h"
+#include "model.h"
+
+constexpr int width  = 1024;
+constexpr int height = 1024;
 
 constexpr TGAColor white  = {255, 255, 255, 255}; // attention, BGRA order
 constexpr TGAColor green  = {  0, 255,   0, 255};
@@ -47,23 +51,36 @@ void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
     }
 }
 
+std::tuple<int, int> project(Vec3f v) {
+    return {
+        (v.x + 1.0f) * width / 2.0f,
+        (v.y + 1.0f) * height / 2.0f,
+    };
+}
+
 int main(int argc, char** argv) {
-    constexpr int width  = 64;
-    constexpr int height = 64;
+    // load model
+    Model model("models/diablo3.obj");
     TGAImage framebuffer(width, height, TGAImage::RGB);
 
-    int ax =  7, ay =  3;
-    int bx = 12, by = 37;
-    int cx = 62, cy = 53;
+    // draw faces
+    for (const auto& face : model.faces) {
+        // for each face, get the 3 corresponding vertices and project them to the screen
+        auto [x0, y0] = project(model.verts[face.x]);
+        auto [x1, y1] = project(model.verts[face.y]);
+        auto [x2, y2] = project(model.verts[face.z]);
 
-    line(ax, ay, bx, by, framebuffer, blue);
-    line(cx, cy, bx, by, framebuffer, green);
-    line(cx, cy, ax, ay, framebuffer, yellow);
-    line(ax, ay, cx, cy, framebuffer, red);
+        // draw the 3 lines of the face
+        line(x0, y0, x1, y1, framebuffer, red);
+        line(x1, y1, x2, y2, framebuffer, red);
+        line(x2, y2, x0, y0, framebuffer, red);
+    }
 
-    framebuffer.set(ax, ay, white);
-    framebuffer.set(bx, by, white);
-    framebuffer.set(cx, cy, white);
+    // highlight vertices
+    for (const auto& vert : model.verts) {
+        auto [x, y] = project(vert);
+        framebuffer.set(x, y, green);
+    }
 
     framebuffer.write_tga_file("framebuffer.tga");
     return 0;
