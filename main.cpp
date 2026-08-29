@@ -1,8 +1,8 @@
 #include "tgaimage.h"
 #include "model.h"
 
-constexpr int width  = 1024;
-constexpr int height = 1024;
+constexpr int width  = 2048;
+constexpr int height = 2048;
 
 constexpr TGAColor white  = {255, 255, 255, 255}; // attention, BGRA order
 constexpr TGAColor green  = {  0, 255,   0, 255};
@@ -51,6 +51,7 @@ void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
     }
 }
 
+// viewpoint transformation
 std::tuple<int, int> project(Vec3f v) {
     return {
         (v.x + 1.0f) * width / 2.0f,
@@ -60,7 +61,7 @@ std::tuple<int, int> project(Vec3f v) {
 
 int main(int argc, char** argv) {
     // load model
-    Model model("models/diablo3.obj");
+    Model model("models/beast.obj");
     TGAImage framebuffer(width, height, TGAImage::RGB);
 
     // draw faces
