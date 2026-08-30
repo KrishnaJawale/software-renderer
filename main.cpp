@@ -87,11 +87,11 @@ void triangle(int x0, int y0, int z0, int x1, int y1, int z1, int x2, int y2, in
 
             // if all weights are positive, point is inside triangle
             if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
-                framebuffer.set(x, y, color);
-
-                // calculate depth of point
                 unsigned char depth = static_cast<unsigned char>(w0 * z0 + w1 * z1 + w2 * z2);
-                depthbuffer.set(x, y, {depth});
+                if (depthbuffer.get(x, y)[0] < depth) {
+                    framebuffer.set(x, y, color);
+                    depthbuffer.set(x, y, {depth});
+                }
             }
         }
     }
@@ -99,7 +99,7 @@ void triangle(int x0, int y0, int z0, int x1, int y1, int z1, int x2, int y2, in
 
 int main(int argc, char** argv) {
     // load model
-    Model model("models/diablo3.obj");
+    Model model("models/seashell.obj");
 
     TGAImage framebuffer(width, height, TGAImage::RGB);
     // depth buffer to keep track of the depth of each pixel
