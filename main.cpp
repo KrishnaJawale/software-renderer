@@ -1,8 +1,8 @@
 #include "tgaimage.h"
 #include "model.h"
 
-constexpr int width  = 2048;
-constexpr int height = 2048;
+constexpr int width  = 128;
+constexpr int height = 128;
 
 constexpr TGAColor white  = {255, 255, 255, 255}; // attention, BGRA order
 constexpr TGAColor green  = {  0, 255,   0, 255};
@@ -59,11 +59,45 @@ std::tuple<int, int> project(Vec3f v) {
     };
 }
 
+// draw a triangle
+void triangle(int x0, int y0, int x1, int y1, int x2, int y2, TGAImage &framebuffer, TGAColor color) {
+    // sort vertices by y coordinate (y2 > y1 > y0)
+    if (y2 < y1) {
+        std::swap(y1, y2);
+        std::swap(x1, x2);
+    }
+    if (y2 < y0) {
+        std::swap(y0, y2);
+        std::swap(x0, x2);
+    } 
+    if (y1 < y0) {
+        std::swap(y0, y1);
+        std::swap(x0, x1);
+    }
+    
+    line(x0, y0, x1, y1, framebuffer, green);
+    line(x1, y1, x2, y2, framebuffer, green);
+    line(x2, y2, x0, y0, framebuffer, red);
+
+    if (y0 != y1) {
+        for (int y = y0; y <= y1; y++) {
+            int ax = x0 + (y - y0) * (x1 - x0) / (y1 - y0);
+            int bx = x0 + (y - y0) * (x2 - x0) / (y2 - y0);
+            framebuffer.set(ax, y, green);
+            framebuffer.set(bx, y, red);
+        }
+    }
+}
+
 int main(int argc, char** argv) {
+    /*
     // load model
-    Model model("models/beast.obj");
+    Model model("models/diablo3.obj");
+    */
+
     TGAImage framebuffer(width, height, TGAImage::RGB);
 
+    /*
     // draw faces
     for (const auto& face : model.faces) {
         // for each face, get the 3 corresponding vertices and project them to the screen
@@ -82,6 +116,11 @@ int main(int argc, char** argv) {
         auto [x, y] = project(vert);
         framebuffer.set(x, y, green);
     }
+    */
+
+    triangle(  7, 45, 35, 100, 45,  60, framebuffer, red);
+    triangle(120, 35, 90,   5, 45, 110, framebuffer, white);
+    triangle(115, 83, 80,  90, 85, 120, framebuffer, green);
 
     framebuffer.write_tga_file("framebuffer.tga");
     return 0;
