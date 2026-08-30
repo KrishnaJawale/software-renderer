@@ -1,8 +1,8 @@
 #include "tgaimage.h"
 #include "model.h"
 
-constexpr int width  = 1024;
-constexpr int height = 1024;
+constexpr int width  = 2048;
+constexpr int height = 2048;
 
 constexpr TGAColor white  = {255, 255, 255, 255}; // attention, BGRA order
 constexpr TGAColor green  = {  0, 255,   0, 255};
@@ -74,7 +74,7 @@ void triangle(int x0, int y0, int x1, int y1, int x2, int y2, TGAImage &framebuf
 
     // calculate signed area of triangle
     double area = signed_area(x0, y0, x1, y1, x2, y2);
-    if (area == 0) return;
+    if (area < 1) return;
 
     // iterate over bounding box
     for (int y = ymin; y <= ymax; y++) {
