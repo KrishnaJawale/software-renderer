@@ -74,17 +74,38 @@ void triangle(int x0, int y0, int x1, int y1, int x2, int y2, TGAImage &framebuf
         std::swap(y0, y1);
         std::swap(x0, x1);
     }
-    
-    line(x0, y0, x1, y1, framebuffer, green);
-    line(x1, y1, x2, y2, framebuffer, green);
-    line(x2, y2, x0, y0, framebuffer, red);
 
+    // if possible, fill bottom half of the triangle
     if (y0 != y1) {
         for (int y = y0; y <= y1; y++) {
             int ax = x0 + (y - y0) * (x1 - x0) / (y1 - y0);
             int bx = x0 + (y - y0) * (x2 - x0) / (y2 - y0);
-            framebuffer.set(ax, y, green);
-            framebuffer.set(bx, y, red);
+
+            if (ax > bx) {
+                std::swap(ax, bx);
+            }
+            
+            // line(ax, y, bx, y, framebuffer, color);
+            for (int x = ax; x <= bx; x++) {
+                framebuffer.set(x, y, color);
+            }
+        }
+    }
+
+    // if possible, fill top half of the triangle
+    if (y1 != y2) {
+        for (int y = y1; y <= y2; y++) {
+            int ax = x1 + (y - y1) * (x2 - x1) / (y2 - y1);
+            int bx = x0 + (y - y0) * (x2 - x0) / (y2 - y0);
+
+            if (ax > bx) {
+                std::swap(ax, bx);
+            }
+            
+            // line(ax, y, bx, y, framebuffer, color);
+            for (int x = ax; x <= bx; x++) {
+                framebuffer.set(x, y, color);
+            }
         }
     }
 }
