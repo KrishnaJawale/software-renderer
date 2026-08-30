@@ -52,10 +52,11 @@ void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
 }
 
 // viewpoint transformation
-std::tuple<int, int> project(Vec3f v) {
+std::tuple<int, int, int> project(Vec3f v) {
     return {
         (v.x + 1.0f) * width * 0.5f,
         (v.y + 1.0f) * height * 0.5f,
+        (v.z + 1.0f) * 255. * 0.5f,
     };
 }
 
@@ -65,7 +66,7 @@ double signed_area(int x0, int y0, int x1, int y1, int x2, int y2) {
 }
 
 // draw a triangle
-void triangle(int x0, int y0, int x1, int y1, int x2, int y2, TGAImage &framebuffer, TGAColor color) {
+void triangle(int x0, int y0, int z0, int x1, int y1, int z1, int x2, int y2, int z2, TGAImage &depthbuffer, TGAImage &framebuffer, TGAColor color) {
     // find bounding box of triangle
     int xmin = std::min({x0, x1, x2});
     int ymin = std::min({y0, y1, y2});
@@ -87,6 +88,10 @@ void triangle(int x0, int y0, int x1, int y1, int x2, int y2, TGAImage &framebuf
             // if all weights are positive, point is inside triangle
             if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
                 framebuffer.set(x, y, color);
+
+                // calculate depth of point
+                unsigned char depth = static_cast<unsigned char>(w0 * z0 + w1 * z1 + w2 * z2);
+                depthbuffer.set(x, y, {depth});
             }
         }
     }
@@ -97,22 +102,25 @@ int main(int argc, char** argv) {
     Model model("models/diablo3.obj");
 
     TGAImage framebuffer(width, height, TGAImage::RGB);
+    // depth buffer to keep track of the depth of each pixel
+    TGAImage depthbuffer(width, height, TGAImage::GRAYSCALE);
 
     // draw faces
     for (const auto& face : model.faces) {
         // for each face, get the 3 corresponding vertices and project them to the screen
-        auto [x0, y0] = project(model.verts[face.x]);
-        auto [x1, y1] = project(model.verts[face.y]);
-        auto [x2, y2] = project(model.verts[face.z]);
+        auto [x0, y0, z0] = project(model.verts[face.x]);
+        auto [x1, y1, z1] = project(model.verts[face.y]);
+        auto [x2, y2, z2] = project(model.verts[face.z]);
 
         TGAColor rand_color;
         for (int c = 0; c < 3; c++) {
             rand_color[c] = std::rand() % 255;
         }
 
-        triangle(x0, y0, x1, y1, x2, y2, framebuffer, rand_color);
+        triangle(x0, y0, z0, x1, y1, z1, x2, y2, z2, depthbuffer, framebuffer, rand_color);
     }
 
     framebuffer.write_tga_file("framebuffer.tga");
+    depthbuffer.write_tga_file("depthbuffer.tga");
     return 0;
 }
