@@ -1,5 +1,6 @@
 #include "tgaimage.h"
 #include "model.h"
+#include "vec.h"
 
 constexpr int width  = 2048;
 constexpr int height = 2048;

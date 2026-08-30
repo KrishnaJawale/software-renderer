@@ -6,14 +6,7 @@
 #include <vector>
 #include <limits>
 #include <algorithm>
-
-struct Vec3f {
-    float x, y, z;
-};
-
-struct Vec3i {
-    int x, y, z;
-};
+#include "vec.h"
 
 class Model {
     public:
