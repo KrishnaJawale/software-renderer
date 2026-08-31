@@ -52,15 +52,6 @@ void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
     }
 }
 
-// viewpoint transformation
-std::tuple<int, int, int> project(Vec3f v) {
-    return {
-        (v.x + 1.0f) * width * 0.5f,
-        (v.y + 1.0f) * height * 0.5f,
-        (v.z + 1.0f) * 255. * 0.5f,
-    };
-}
-
 // calculate signed area of triangle
 double signed_area(int x0, int y0, int x1, int y1, int x2, int y2) {
     return (x0 * (y1 - y2) + x1 * (y2 - y0) + x2 * (y0 - y1)) * 0.5;
@@ -96,6 +87,17 @@ void triangle(int x0, int y0, int z0, int x1, int y1, int z1, int x2, int y2, in
             }
         }
     }
+}
+
+// rotate
+
+// viewpoint transformation
+std::tuple<int, int, int> project(Vec3f v) {
+    return {
+        (v.x + 1.0f) * width * 0.5f,
+        (v.y + 1.0f) * height * 0.5f,
+        (v.z + 1.0f) * 255. * 0.5f,
+    };
 }
 
 int main(int argc, char** argv) {
