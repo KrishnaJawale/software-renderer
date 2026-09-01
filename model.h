@@ -6,7 +6,7 @@
 #include <vector>
 #include <limits>
 #include <algorithm>
-#include "vec.h"
+#include "geometry.h"
 
 class Model {
     public:
