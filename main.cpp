@@ -68,7 +68,7 @@ void triangle(int x0, int y0, float z0, int x1, int y1, float z1, int x2, int y2
     int xmax = std::max({x0, x1, x2});
     int ymax = std::max({y0, y1, y2});
 
-    // clamp bounding box to screen size
+    // clamp bounding box to screen size (perspective function can cause values outside of screen bounds)
     xmin = std::max(0, xmin);
     ymin = std::max(0, ymin);
     xmax = std::min(width - 1, xmax);
@@ -150,6 +150,37 @@ int main(int argc, char** argv) {
     }
 
     framebuffer.write_tga_file("framebuffer.tga");
+
+    // depth buffer TGA image for debugging
+    TGAImage depthimg(width, height, TGAImage::GRAYSCALE);
+
+    float zmin = std::numeric_limits<float>::infinity();
+    float zmax = -std::numeric_limits<float>::infinity();
+
+    for (float depth : depthbuffer) {
+        if (depth == -std::numeric_limits<float>::infinity()) continue;
+        
+        if (depth > zmax) zmax = depth;
+        if (depth < zmin) zmin = depth;
+    }
+
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int idx = x + y * width;
+            float z = depthbuffer[idx];
+
+            if (z == -std::numeric_limits<float>::infinity()) {
+                depthimg.set(x, y, {0});
+                continue;
+            }
+
+            float normalized_z = (z - zmin) / (zmax - zmin);
+            unsigned char depth = static_cast<unsigned char>(normalized_z * 255.0f);
+            depthimg.set(x, y, {depth});
+        }
+    }
+
+    depthimg.write_tga_file("depthimg.tga");
 
     return 0;
 }
