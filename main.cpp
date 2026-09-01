@@ -2,6 +2,8 @@
 #include "model.h"
 #include "geometry.h"
 #include <cmath>
+#include <vector>
+#include <limits>
 
 constexpr int width  = 2048;
 constexpr int height = 2048;
@@ -59,12 +61,19 @@ double signed_area(int x0, int y0, int x1, int y1, int x2, int y2) {
 }
 
 // draw a triangle
-void triangle(int x0, int y0, int z0, int x1, int y1, int z1, int x2, int y2, int z2, TGAImage &depthbuffer, TGAImage &framebuffer, TGAColor color) {
+void triangle(int x0, int y0, float z0, int x1, int y1, float z1, int x2, int y2, float z2, std::vector<float> &depthbuffer, TGAImage &framebuffer, TGAColor color) {
     // find bounding box of triangle
     int xmin = std::min({x0, x1, x2});
     int ymin = std::min({y0, y1, y2});
     int xmax = std::max({x0, x1, x2});
     int ymax = std::max({y0, y1, y2});
+
+    // clamp bounding box to screen size
+    xmin = std::max(0, xmin);
+    ymin = std::max(0, ymin);
+    xmax = std::min(width - 1, xmax);
+    ymax = std::min(height - 1, ymax);
+    if (xmin > xmax || ymin > ymax) return;
 
     // calculate signed area of triangle
     double area = signed_area(x0, y0, x1, y1, x2, y2);
@@ -80,10 +89,11 @@ void triangle(int x0, int y0, int z0, int x1, int y1, int z1, int x2, int y2, in
 
             // if all weights are positive, point is inside triangle
             if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
-                unsigned char depth = static_cast<unsigned char>(w0 * z0 + w1 * z1 + w2 * z2);
-                if (depthbuffer.get(x, y)[0] < depth) {
+                float depth = w0 * z0 + w1 * z1 + w2 * z2;
+                int idx = x + y * width;
+                if (depthbuffer[idx] < depth) {
                     framebuffer.set(x, y, color);
-                    depthbuffer.set(x, y, {depth});
+                    depthbuffer[idx] = depth;
                 }
             }
         }
@@ -108,11 +118,11 @@ Vec3f perspective(Vec3f v) {
 }
 
 // viewpoint transformation
-std::tuple<int, int, int> project(Vec3f v) {
+std::tuple<int, int, float> project(Vec3f v) {
     return {
         (v.x + 1.0f) * width * 0.5f,
         (v.y + 1.0f) * height * 0.5f,
-        (v.z + 1.0f) * 255. * 0.5f,
+        v.z,
     };
 }
 
@@ -122,7 +132,7 @@ int main(int argc, char** argv) {
 
     TGAImage framebuffer(width, height, TGAImage::RGB);
     // depth buffer to keep track of the depth of each pixel
-    TGAImage depthbuffer(width, height, TGAImage::GRAYSCALE);
+    std::vector<float> depthbuffer(width * height, -std::numeric_limits<float>::infinity());
 
     // draw faces
     for (const auto& face : model.faces) {
@@ -140,6 +150,6 @@ int main(int argc, char** argv) {
     }
 
     framebuffer.write_tga_file("framebuffer.tga");
-    depthbuffer.write_tga_file("depthbuffer.tga");
+
     return 0;
 }
