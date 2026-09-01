@@ -1,6 +1,7 @@
 #include "tgaimage.h"
 #include "model.h"
 #include "geometry.h"
+#include <cmath>
 
 constexpr int width  = 2048;
 constexpr int height = 2048;
@@ -90,6 +91,21 @@ void triangle(int x0, int y0, int z0, int x1, int y1, int z1, int x2, int y2, in
 }
 
 // rotate
+Vec3f rotate(Vec3f v) {
+    constexpr float angle = M_PI / 6;
+    const Mat3f Ry = {
+        Vec3f(std::cos(angle), 0.f, std::sin(angle)),
+        Vec3f(0.f, 1.f, 0.f),
+        Vec3f(-std::sin(angle), 0.f, std::cos(angle))
+    };
+    return Ry * v;
+}
+
+// perspective projection
+Vec3f perspective(Vec3f v) {
+    constexpr float d = 3.0f;
+    return v / (1.0f - (v.z / d));
+}
 
 // viewpoint transformation
 std::tuple<int, int, int> project(Vec3f v) {
@@ -102,7 +118,7 @@ std::tuple<int, int, int> project(Vec3f v) {
 
 int main(int argc, char** argv) {
     // load model
-    Model model("models/seashell.obj");
+    Model model("models/diablo3.obj");
 
     TGAImage framebuffer(width, height, TGAImage::RGB);
     // depth buffer to keep track of the depth of each pixel
@@ -111,9 +127,9 @@ int main(int argc, char** argv) {
     // draw faces
     for (const auto& face : model.faces) {
         // for each face, get the 3 corresponding vertices and project them to the screen
-        auto [x0, y0, z0] = project(model.verts[face.x]);
-        auto [x1, y1, z1] = project(model.verts[face.y]);
-        auto [x2, y2, z2] = project(model.verts[face.z]);
+        auto [x0, y0, z0] = project(perspective(rotate(model.verts[face.x])));
+        auto [x1, y1, z1] = project(perspective(rotate(model.verts[face.y])));
+        auto [x2, y2, z2] = project(perspective(rotate(model.verts[face.z])));
 
         TGAColor rand_color;
         for (int c = 0; c < 3; c++) {
