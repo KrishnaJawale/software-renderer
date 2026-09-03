@@ -76,7 +76,8 @@ void triangle(int x0, int y0, float z0, int x1, int y1, float z1, int x2, int y2
 
     // calculate signed area of triangle
     double area = signed_area(x0, y0, x1, y1, x2, y2);
-    if (area < 1) return;
+    // Degenerate/very small triangles: avoid division by close to 0 and numerical noise
+    if (std::abs(area) < 1e-8) return;
 
     // iterate over bounding box
     for (int y = ymin; y <= ymax; y++) {
