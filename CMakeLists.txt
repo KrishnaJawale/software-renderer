@@ -6,8 +6,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(software-renderer
-  main.cpp
-  tgaimage.cpp
+  src/main.cpp
+  src/pipeline.cpp
+  src/tgaimage.cpp
 )
 
-target_include_directories(software-renderer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(software-renderer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
