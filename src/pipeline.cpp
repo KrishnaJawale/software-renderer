@@ -50,7 +50,7 @@ void Pipeline::init_depthbuffer(const int width, const int height) {
 
 // calculate signed area of triangle
 static float signed_area(int x0, int y0, int x1, int y1, int x2, int y2) {
-    return (x0 * (y1 - y2) + x1 * (y2 - y0) + x2 * (y0 - y1)) * 0.5;
+    return (x0 * (y1 - y2) + x1 * (y2 - y0) + x2 * (y0 - y1)) * 0.5f;
 }
 
 // rasterize a triangle given in clip space; fragment color is computed by the shader
