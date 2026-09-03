@@ -5,8 +5,7 @@
 #include <vector>
 #include <limits>
 
-constexpr int width  = 2048;
-constexpr int height = 2048;
+Mat4f ModelView, Viewport, Projection;
 
 constexpr TGAColor white  = {255, 255, 255, 255}; // attention, BGRA order
 constexpr TGAColor green  = {  0, 255,   0, 255};
@@ -14,45 +13,45 @@ constexpr TGAColor red    = {  0,   0, 255, 255};
 constexpr TGAColor blue   = {255, 128,  64, 255};
 constexpr TGAColor yellow = {  0, 200, 255, 255};
 
-void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
-    // if line is steep, transpose coordinates
-    bool steep = false;
-    if (std::abs(y1 - y0) > std::abs(x1 - x0)) {
-        steep = true;
-        std::swap(x0, y0);
-        std::swap(x1, y1);
-    }
+void viewport(const int x, const int y, const int w, const int h) {
+    // viewport transformation matrix
+    // multiplying a vec4 by this matrix transforms the point or vector to the viewport space
+    Viewport = {
+        {w / 2.0f, 0.0f, 0.0f, x + w / 2.0f},
+        {0.0f, h / 2.0f, 0.0f, y + h / 2.0f},
+        {0.0f, 0.0f, 1.0f, 0.0f},
+        {0.0f, 0.0f, 0.0f, 1.0f}
+    };
+}
 
-    // swap coordinates if x0 is greater than x1 (keep left to right order)
-    if (x0 > x1) {
-        std::swap(x0, x1);
-        std::swap(y0, y1);
-    }
+void perspective(const double focal_length) {
+    // perspective transformation matrix
+    // multiplying a vec4 by this matrix transforms the point or vector to the perspective space
+    Projection = {
+        {1,0,0,0},
+        {0,1,0,0},
+        {0,0,1,0},
+        {0,0, static_cast<float>(-1/focal_length),1}
+    };
+}
 
-    // calculate slope
-    int y = y0;
-    int error = 0;
-
-    for (int x = x0; x <= x1; x++) {
-        // if line is steep, transpose coordinates back to original
-        if (steep) {
-            image.set(y, x, color);
-        } else {
-            image.set(x, y, color);
-        }
-
-        // update error and y position based on slope
-        error += 2 * std::abs(y1 - y0);
-        if (error > x1 - x0) {
-            if (y1 > y0) {
-                y += 1;
-            } else {
-                y -= 1;
-            }
-
-            error -= 2 * (x1 - x0);
-        }
-    }
+void lookat(const Vec3f &eye, const Vec3f &center, const Vec3f &up) {
+    // lookat transformation matrix
+    // multiplying a vec4 by this matrix transforms the point or vector to the lookat space
+    Vec3f to_camera = normalize(eye - center); // vector from what we are looking to the camera
+    Vec3f right = normalize(cross(up, to_camera)); // vector to the right of the camera
+    Vec3f camera_up = normalize(cross(to_camera, right)); // vector up from the camera
+    ModelView = Mat4f({
+        {right.x, right.y, right.z, 0},
+        {camera_up.x, camera_up.y, camera_up.z, 0},
+        {to_camera.x, to_camera.y, to_camera.z, 0},
+        {0, 0, 0, 1}
+    }) * Mat4f({
+        {1, 0, 0, -center.x},
+        {0, 1, 0, -center.y},
+        {0, 0, 1, -center.z},
+        {0, 0, 0, 1}
+    });
 }
 
 // calculate signed area of triangle
@@ -60,8 +59,8 @@ double signed_area(int x0, int y0, int x1, int y1, int x2, int y2) {
     return (x0 * (y1 - y2) + x1 * (y2 - y0) + x2 * (y0 - y1)) * 0.5;
 }
 
-// draw a triangle
-void triangle(int x0, int y0, float z0, int x1, int y1, float z1, int x2, int y2, float z2, std::vector<float> &depthbuffer, TGAImage &framebuffer, TGAColor color) {
+// rasterize
+void triangle(int x0, int y0, float z0, int x1, int y1, float z1, int x2, int y2, float z2, int width, int height, std::vector<float> &depthbuffer, TGAImage &framebuffer, TGAColor color) {
     // find bounding box of triangle
     int xmin = std::min({x0, x1, x2});
     int ymin = std::min({y0, y1, y2});
@@ -100,33 +99,19 @@ void triangle(int x0, int y0, float z0, int x1, int y1, float z1, int x2, int y2
     }
 }
 
-// rotate
-Vec3f rotate(Vec3f v) {
-    constexpr float angle = M_PI / 6;
-    const Mat3f Ry = {
-        Vec3f(std::cos(angle), 0.f, std::sin(angle)),
-        Vec3f(0.f, 1.f, 0.f),
-        Vec3f(-std::sin(angle), 0.f, std::cos(angle))
-    };
-    return Ry * v;
-}
-
-// perspective projection
-Vec3f perspective(Vec3f v) {
-    constexpr float d = 3.0f;
-    return v / (1.0f - (v.z / d));
-}
-
-// viewpoint transformation
-std::tuple<int, int, float> project(Vec3f v) {
-    return {
-        (v.x + 1.0f) * width * 0.5f,
-        (v.y + 1.0f) * height * 0.5f,
-        v.z,
-    };
-}
-
 int main(int argc, char** argv) {
+    // set screen size and camera parameters
+    constexpr int width  = 2048;
+    constexpr int height = 2048;
+    const Vec3f eye{-1.f,0.f,2.f};
+    const Vec3f center{0.f,0.f,0.f};
+    const Vec3f up{0.f,1.f,0.f};
+
+    // set viewport and perspective transformation matrices
+    viewport(width/16, height/16, width * 7/8, height * 7/8);
+    perspective(norm(eye-center));
+    lookat(eye, center, up);
+
     // load model
     Model model("models/diablo3.obj");
 
@@ -136,17 +121,28 @@ int main(int argc, char** argv) {
 
     // draw faces
     for (const auto& face : model.faces) {
-        // for each face, get the 3 corresponding vertices and project them to the screen
-        auto [x0, y0, z0] = project(perspective(rotate(model.verts[face.x])));
-        auto [x1, y1, z1] = project(perspective(rotate(model.verts[face.y])));
-        auto [x2, y2, z2] = project(perspective(rotate(model.verts[face.z])));
-
-        TGAColor rand_color;
-        for (int c = 0; c < 3; c++) {
-            rand_color[c] = std::rand() % 255;
+        Vec3f verts[3] = {
+            model.verts[face.x],
+            model.verts[face.y],
+            model.verts[face.z]
+        };
+        int screen_x[3], screen_y[3];
+        float depth[3];
+        for (int i = 0; i < 3; i++) {
+            Vec4f clip = Projection * ModelView * Vec4f(verts[i].x, verts[i].y, verts[i].z, 1.f);
+            Vec4f ndc  = clip / clip.w;
+            Vec4f screen  = Viewport * ndc;
+            screen_x[i] = static_cast<int>(screen.x);
+            screen_y[i] = static_cast<int>(screen.y);
+            depth[i] = ndc.z;
         }
 
-        triangle(x0, y0, z0, x1, y1, z1, x2, y2, z2, depthbuffer, framebuffer, rand_color);
+        TGAColor color;
+        for (int c = 0; c < 3; c++) {
+            color[c] = std::rand() % 255;
+        }
+
+        triangle(screen_x[0], screen_y[0], depth[0], screen_x[1], screen_y[1], depth[1], screen_x[2], screen_y[2], depth[2], width, height, depthbuffer, framebuffer, color);
     }
 
     framebuffer.write_tga_file("framebuffer.tga");

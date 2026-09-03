@@ -1,5 +1,6 @@
 #pragma once
 #include <cmath>
+#include <initializer_list>
 
 struct Vec3f {
     float x, y, z;
@@ -23,7 +24,7 @@ struct Vec3f {
         return Vec3f(x / s, y / s, z / s);
     }
 
-    float operator[](int i) const {
+    float& operator[](int i) {
         return i == 0 ? x : i == 1 ? y : z;
     }
 
@@ -85,12 +86,12 @@ float dot(const Vec4f &v1, const Vec4f &v2) {
     return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z + v1.w * v2.w;
 }
 
-float length(const Vec3f &v) {
+float norm(const Vec3f &v) {
     return std::sqrt(dot(v, v));
 }
 
 Vec3f normalize(const Vec3f &v) {
-    return v / length(v);
+    return v / norm(v);
 }
 
 Vec3f cross(const Vec3f &v1, const Vec3f &v2) {
@@ -115,6 +116,15 @@ struct Mat3f {
 
 struct Mat4f {
     Vec4f rows[4];
+
+    Mat4f() = default;
+
+    Mat4f(std::initializer_list<Vec4f> init) {
+        int i = 0;
+        for (const Vec4f &row : init) {
+            rows[i++] = row;
+        }
+    }
 
     Vec4f operator*(const Vec4f &v) const {
         return Vec4f(
