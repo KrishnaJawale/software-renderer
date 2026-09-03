@@ -15,6 +15,27 @@ struct RandomShader : IShader {
     }
 };
 
+struct PhongShader : IShader {    
+    Vec3f normal{}; // unit vector orthogonal to the triangle
+    Vec3f light_dir = normalize(Vec3f{1.0f, 1.0f, 1.0f}); // direction of the light source
+    Vec3f view_dir = normalize(Vec3f{0.f, 0.f, -1.f}); // direction of the view vector
+    float shininess = 100.f;
+
+    std::pair<bool, TGAColor> fragment(const Vec3f &bar) const override {
+        float ambient = 0.1f;
+        float diffuse = std::max(0.f, dot(normal, light_dir));
+        Vec3f light_reflection = normal * 2 * dot(normal, light_dir) - light_dir;
+        light_reflection = normalize(light_reflection);
+        float specular = std::pow(std::max(0.f, dot(light_reflection, view_dir)), shininess);
+        float intensity = std::min(1.0f, ambient + diffuse + specular) * 255.f;
+        std::uint8_t intensity_u8 = static_cast<std::uint8_t>(intensity);
+
+        TGAColor color{intensity_u8, intensity_u8, intensity_u8, 255};
+
+        return {false, color};
+    }
+};
+
 int main(int argc, char** argv) {
     // set screen size and camera parameters
     constexpr int width  = 2048;
@@ -33,9 +54,9 @@ int main(int argc, char** argv) {
     TGAImage framebuffer(width, height, TGAImage::RGB);
 
     // load model
-    Model model("models/diablo3.obj");
+    Model model("models/head.obj");
 
-    RandomShader shader;
+    PhongShader shader;
 
     // draw faces
     for (const auto& face : model.faces) {
@@ -45,12 +66,20 @@ int main(int argc, char** argv) {
             model.verts[face.z]
         };
 
+        Vec3f view_pos[3];
         Vec4f clip[3];
         for (int i = 0; i < 3; i++) {
-            clip[i] = pipeline.Projection * pipeline.ModelView * Vec4f(verts[i].x, verts[i].y, verts[i].z, 1.f);
+            Vec4f view = pipeline.ModelView * Vec4f(verts[i].x, verts[i].y, verts[i].z, 1.f);
+            clip[i] = pipeline.Projection * view;
+
+            view_pos[i] = Vec3f(view.x, view.y, view.z);
         }
 
-        shader.color = {std::rand() % 255, std::rand() % 255, std::rand() % 255, 255};
+        // shader.color = {std::rand() % 255, std::rand() % 255, std::rand() % 255, 255};
+        // compute normal to the triangle face for Phong shader
+        Vec3f normal = cross(view_pos[1] - view_pos[0], view_pos[2] - view_pos[0]);
+        normal = normalize(normal);
+        shader.normal = normal;
 
         rasterize(pipeline, clip, shader, framebuffer);
     }

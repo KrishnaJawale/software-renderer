@@ -49,7 +49,7 @@ void Pipeline::init_depthbuffer(const int width, const int height) {
 }
 
 // calculate signed area of triangle
-static double signed_area(int x0, int y0, int x1, int y1, int x2, int y2) {
+static float signed_area(int x0, int y0, int x1, int y1, int x2, int y2) {
     return (x0 * (y1 - y2) + x1 * (y2 - y0) + x2 * (y0 - y1)) * 0.5;
 }
 
@@ -87,7 +87,7 @@ void rasterize(Pipeline &pipeline, const Vec4f clip[3], const IShader &shader, T
     if (xmin > xmax || ymin > ymax) return;
 
     // calculate signed area of triangle
-    double area = signed_area(x0, y0, x1, y1, x2, y2);
+    float area = signed_area(x0, y0, x1, y1, x2, y2);
     // Degenerate/very small triangles: avoid division by close to 0 and numerical noise
     if (std::abs(area) < 1e-8) return;
 
@@ -95,9 +95,9 @@ void rasterize(Pipeline &pipeline, const Vec4f clip[3], const IShader &shader, T
     for (int y = ymin; y <= ymax; y++) {
         for (int x = xmin; x <= xmax; x++) {
             // calculate weights (barycentric coordinates)
-            double w0 = signed_area(x, y, x1, y1, x2, y2) / area;
-            double w1 = signed_area(x0, y0, x, y, x2, y2) / area;
-            double w2 = signed_area(x0, y0, x1, y1, x, y) / area;
+            float w0 = signed_area(x, y, x1, y1, x2, y2) / area;
+            float w1 = signed_area(x0, y0, x, y, x2, y2) / area;
+            float w2 = signed_area(x0, y0, x1, y1, x, y) / area;
 
             // if all weights are positive, point is inside triangle
             if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
