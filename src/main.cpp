@@ -14,8 +14,8 @@
 
 struct PhongShader : IShader {
     Vec3f normal{}; // unit vector orthogonal to the triangle
-    Vec3f light_dir = normalize(Vec3f{1.0f, 1.0f, 1.0f}); // direction of the light source
-    Vec3f view_dir = normalize(Vec3f{0.f, 0.f, -1.f}); // direction of the view vector
+    Vec3f light_dir = normalize(Vec3f{1.0f, 1.0f, 1.0f}); // from surface toward the light
+    Vec3f view_dir = normalize(Vec3f{0.f, 0.f, -1.f}); // from surface toward the camera
     float shininess = 100.f;
 
     std::pair<bool, TGAColor> fragment(const Vec3f &) const override {
@@ -70,8 +70,8 @@ static void render_frame(Pipeline &pipeline, TGAImage &framebuffer, Model &model
 }
 
 int main(int argc, char **argv) {
-    constexpr int width = 800;
-    constexpr int height = 800;
+    constexpr int width = 1024;
+    constexpr int height = 1024;
     const Vec3f eye{-1.f, 0.f, 2.f};
     const Vec3f center{0.f, 0.f, 0.f};
     const Vec3f up{0.f, 1.f, 0.f};
@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
 
     Pipeline pipeline;
     TGAImage framebuffer(width, height, TGAImage::RGB);
-    Model model("models/head.obj");
+    Model model("models/beast.obj");
     PhongShader shader;
 
     // Present-only: render once, then keep showing it
@@ -140,7 +140,7 @@ int main(int argc, char **argv) {
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, texture, nullptr, nullptr);
         SDL_RenderPresent(renderer);
-        SDL_Delay(16); // ~60 Hz present; scene is static for this commit
+        SDL_Delay(16); // ~60 Hz present; scene is static
     }
 
     SDL_DestroyTexture(texture);

@@ -47,7 +47,7 @@ void Pipeline::set_perspective(const double focal_length) {
 }
 
 void Pipeline::init_depthbuffer(const int width, const int height) {
-    depthbuffer.resize(width * height, -std::numeric_limits<float>::infinity());
+    depthbuffer.assign(width * height, -std::numeric_limits<float>::infinity());
 }
 
 // calculate signed area of triangle
