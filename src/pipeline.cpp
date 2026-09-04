@@ -25,9 +25,11 @@ void Pipeline::lookat(const Vec3f &eye, const Vec3f &center, const Vec3f &up) {
 void Pipeline::set_viewport(const int x, const int y, const int w, const int h) {
     // viewport transformation matrix
     // multiplying a vec4 by this matrix transforms the point or vector to the viewport space
+    // Negative Y scale: NDC +Y (up) maps to smaller buffer y so row 0 is the top of the
+    // window (SDL/canvas convention), instead of appearing upside down on screen
     Viewport = {
         {w / 2.0f, 0.0f, 0.0f, x + w / 2.0f},
-        {0.0f, h / 2.0f, 0.0f, y + h / 2.0f},
+        {0.0f, -h / 2.0f, 0.0f, y + h / 2.0f},
         {0.0f, 0.0f, 1.0f, 0.0f},
         {0.0f, 0.0f, 0.0f, 1.0f}
     };
