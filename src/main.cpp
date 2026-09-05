@@ -72,7 +72,7 @@ static void render_frame(Pipeline &pipeline, TGAImage &framebuffer, Model &model
 int main(int argc, char **argv) {
     constexpr int width = 1024;
     constexpr int height = 1024;
-    const Vec3f eye{-1.f, 0.f, 2.f};
+    const Vec3f eye{-1.f, 0.f, 4.0f};
     const Vec3f center{0.f, 0.f, 0.f};
     const Vec3f up{0.f, 1.f, 0.f};
 
@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
 
     Pipeline pipeline;
     TGAImage framebuffer(width, height, TGAImage::RGB);
-    Model model("models/beast.obj");
+    Model model("models/totem.obj");
     PhongShader shader;
 
     // Present-only: render once, then keep showing it

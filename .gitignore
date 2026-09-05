@@ -6,4 +6,3 @@ cmake-build-*/
 *.o
 *.out
 .DS_Store
-README.md
