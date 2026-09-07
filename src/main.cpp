@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <iostream>
 #include <limits>
+#include <string>
 #include <vector>
 
 // Decode an object space normal from a normal map texel
@@ -25,8 +26,20 @@ static Vec3f normal_from_map(const TGAImage &normal_map, const Vec2f &tex_coord)
     );
 }
 
+static bool face_has_valid_uvs(const Model &model, const Vec3i &face_tex) {
+    if (model.tex_coords.empty()) {
+        return false;
+    }
+    const int n = static_cast<int>(model.tex_coords.size());
+    return face_tex.x >= 0 && face_tex.x < n
+        && face_tex.y >= 0 && face_tex.y < n
+        && face_tex.z >= 0 && face_tex.z < n;
+}
+
 struct PhongShader : IShader {
     Vec2f triangle_uvs[3]{};
+    Vec3f flat_normal{}; // view space face normal (fallback)
+    bool use_normal_map = false;
     const TGAImage *normal_map = nullptr;
     Mat4f ModelView{}; // need copy of camera matrix to map normals to view space
 
@@ -35,11 +48,18 @@ struct PhongShader : IShader {
     float shininess = 100.f;
 
     std::pair<bool, TGAColor> fragment(const Vec3f &barycentric) const override {
-        Vec2f tex_coord = triangle_uvs[0] * barycentric.x + triangle_uvs[1] * barycentric.y + triangle_uvs[2] * barycentric.z;
-
-        Vec3f object_normal = normal_from_map(*normal_map, tex_coord);
-        Vec4f view_normal4 = ModelView * Vec4f(object_normal.x, object_normal.y, object_normal.z, 0.f);
-        Vec3f normal = normalize(Vec3f(view_normal4.x, view_normal4.y, view_normal4.z));
+        Vec3f normal;
+        if (use_normal_map && normal_map) {
+            Vec2f tex_coord =
+                triangle_uvs[0] * barycentric.x +
+                triangle_uvs[1] * barycentric.y +
+                triangle_uvs[2] * barycentric.z;
+            Vec3f object_normal = normal_from_map(*normal_map, tex_coord);
+            Vec4f view_normal4 = ModelView * Vec4f(object_normal.x, object_normal.y, object_normal.z, 0.f);
+            normal = normalize(Vec3f(view_normal4.x, view_normal4.y, view_normal4.z));
+        } else {
+            normal = flat_normal;
+        }
 
         float ambient = 0.1f;
         float diffuse = std::max(0.f, dot(normal, light_dir));
@@ -81,17 +101,24 @@ static void render_frame(Pipeline &pipeline, TGAImage &framebuffer, Model &model
             model.verts[face.y],
             model.verts[face.z]
         };
-        Vec2f uvs[3] = {
-            model.tex_coords[face_tex.x],
-            model.tex_coords[face_tex.y],
-            model.tex_coords[face_tex.z]
-        };
 
+        Vec3f view_pos[3];
         Vec4f clip[3];
         for (int i = 0; i < 3; i++) {
             Vec4f view = pipeline.ModelView * Vec4f(verts[i].x, verts[i].y, verts[i].z, 1.f);
             clip[i] = pipeline.Projection * view;
-            shader.triangle_uvs[i] = uvs[i];
+            view_pos[i] = Vec3f(view.x, view.y, view.z);
+        }
+
+        // Always compute a flat face normal, used when UVs or normal map are unavailable as fallback
+        shader.flat_normal = normalize(cross(view_pos[1] - view_pos[0], view_pos[2] - view_pos[0]));
+
+        const bool can_sample_map = shader.normal_map && face_has_valid_uvs(model, face_tex);
+        shader.use_normal_map = can_sample_map;
+        if (can_sample_map) {
+            shader.triangle_uvs[0] = model.tex_coords[face_tex.x];
+            shader.triangle_uvs[1] = model.tex_coords[face_tex.y];
+            shader.triangle_uvs[2] = model.tex_coords[face_tex.z];
         }
 
         rasterize(pipeline, clip, shader, framebuffer);
@@ -104,6 +131,9 @@ int main(int argc, char **argv) {
     const Vec3f eye{-1.f, 0.f, 4.0f};
     const Vec3f center{0.f, 0.f, 0.f};
     const Vec3f up{0.f, 1.f, 0.f};
+
+    const std::string model_path = (argc > 1) ? argv[1] : "models/totem.obj";
+    const std::string normal_map_path = (argc > 2) ? argv[2] : "models/african_head_nm.tga";
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
@@ -145,20 +175,27 @@ int main(int argc, char **argv) {
 
     Pipeline pipeline;
     TGAImage framebuffer(width, height, TGAImage::RGB);
-    Model model("models/head.obj");
-
-    TGAImage normal_map;
-    if (!normal_map.read_tga_file("models/african_head_nm.tga")) {
-        std::cerr << "failed to load normal map\n";
+    Model model(model_path);
+    if (model.faces.empty()) {
+        std::cerr << "failed to load model (no faces): " << model_path << "\n";
         return 1;
     }
 
-    normal_map.flip_vertically();
-
     PhongShader shader;
-    shader.normal_map = &normal_map;
+    TGAImage normal_map;
+    if (normal_map.read_tga_file(normal_map_path)) {
+        normal_map.flip_vertically();
+        shader.normal_map = &normal_map;
+        std::cerr << "normal map loaded: " << normal_map_path << "\n";
+    } else {
+        shader.normal_map = nullptr;
+        std::cerr << "no normal map (using flat shading fallback)\n";
+    }
 
-    // Present-only: render once, then keep showing it
+    if (model.tex_coords.empty()) {
+        std::cerr << "model has no UVs — normal map sampling disabled\n";
+    }
+
     render_frame(pipeline, framebuffer, model, shader, eye, center, up);
     framebuffer.write_tga_file("framebuffer.tga", false); // false = top left origin (matches SDL buffer)
 
