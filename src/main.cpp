@@ -12,13 +12,35 @@
 #include <limits>
 #include <vector>
 
+// Decode an object space normal from a normal map texel
+// TGAColor is BGRA, but the map stores XYZ in RGB channels
+static Vec3f normal_from_map(const TGAImage &normal_map, const Vec2f &tex_coord) {
+    const int x = std::clamp(static_cast<int>(tex_coord.x * normal_map.width()), 0, normal_map.width() - 1);
+    const int y = std::clamp(static_cast<int>(tex_coord.y * normal_map.height()), 0, normal_map.height() - 1);
+    const TGAColor texel = normal_map.get(x, y);
+    return Vec3f(
+        texel[2] / 255.f * 2.f - 1.f, // get x component from red channel
+        texel[1] / 255.f * 2.f - 1.f, // get y component from green channel
+        texel[0] / 255.f * 2.f - 1.f  // get z component from blue channel
+    );
+}
+
 struct PhongShader : IShader {
-    Vec3f normal{}; // unit vector orthogonal to the triangle
-    Vec3f light_dir = normalize(Vec3f{1.0f, 1.0f, 1.0f}); // from surface toward the light
-    Vec3f view_dir = normalize(Vec3f{0.f, 0.f, -1.f}); // from surface toward the camera
+    Vec2f triangle_uvs[3]{};
+    const TGAImage *normal_map = nullptr;
+    Mat4f ModelView{}; // need copy of camera matrix to map normals to view space
+
+    Vec3f light_dir = normalize(Vec3f{1.0f, 1.0f, 1.0f});
+    Vec3f view_dir = normalize(Vec3f{0.f, 0.f, -1.f});
     float shininess = 100.f;
 
-    std::pair<bool, TGAColor> fragment(const Vec3f &) const override {
+    std::pair<bool, TGAColor> fragment(const Vec3f &barycentric) const override {
+        Vec2f tex_coord = triangle_uvs[0] * barycentric.x + triangle_uvs[1] * barycentric.y + triangle_uvs[2] * barycentric.z;
+
+        Vec3f object_normal = normal_from_map(*normal_map, tex_coord);
+        Vec4f view_normal4 = ModelView * Vec4f(object_normal.x, object_normal.y, object_normal.z, 0.f);
+        Vec3f normal = normalize(Vec3f(view_normal4.x, view_normal4.y, view_normal4.z));
+
         float ambient = 0.1f;
         float diffuse = std::max(0.f, dot(normal, light_dir));
         Vec3f light_reflection = normal * 2 * dot(normal, light_dir) - light_dir;
@@ -41,6 +63,7 @@ static void render_frame(Pipeline &pipeline, TGAImage &framebuffer, Model &model
     pipeline.set_perspective(norm(eye - center));
     pipeline.lookat(eye, center, up);
     pipeline.init_depthbuffer(width, height);
+    shader.ModelView = pipeline.ModelView;
 
     // clear framebuffer to black
     for (int y = 0; y < height; y++) {
@@ -49,22 +72,28 @@ static void render_frame(Pipeline &pipeline, TGAImage &framebuffer, Model &model
         }
     }
 
-    for (const auto &face : model.faces) {
+    for (int face_index = 0; face_index < model.faces.size(); face_index++) {
+        const Vec3i &face = model.faces[face_index];
+        const Vec3i &face_tex = model.face_tex_coords[face_index];
+
         Vec3f verts[3] = {
             model.verts[face.x],
             model.verts[face.y],
             model.verts[face.z]
         };
+        Vec2f uvs[3] = {
+            model.tex_coords[face_tex.x],
+            model.tex_coords[face_tex.y],
+            model.tex_coords[face_tex.z]
+        };
 
-        Vec3f view_pos[3];
         Vec4f clip[3];
         for (int i = 0; i < 3; i++) {
             Vec4f view = pipeline.ModelView * Vec4f(verts[i].x, verts[i].y, verts[i].z, 1.f);
             clip[i] = pipeline.Projection * view;
-            view_pos[i] = Vec3f(view.x, view.y, view.z);
+            shader.triangle_uvs[i] = uvs[i];
         }
 
-        shader.normal = normalize(cross(view_pos[1] - view_pos[0], view_pos[2] - view_pos[0]));
         rasterize(pipeline, clip, shader, framebuffer);
     }
 }
@@ -116,8 +145,18 @@ int main(int argc, char **argv) {
 
     Pipeline pipeline;
     TGAImage framebuffer(width, height, TGAImage::RGB);
-    Model model("models/totem.obj");
+    Model model("models/head.obj");
+
+    TGAImage normal_map;
+    if (!normal_map.read_tga_file("models/african_head_nm.tga")) {
+        std::cerr << "failed to load normal map\n";
+        return 1;
+    }
+
+    normal_map.flip_vertically();
+
     PhongShader shader;
+    shader.normal_map = &normal_map;
 
     // Present-only: render once, then keep showing it
     render_frame(pipeline, framebuffer, model, shader, eye, center, up);

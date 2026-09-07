@@ -106,8 +106,8 @@ void rasterize(Pipeline &pipeline, const Vec4f clip[3], const IShader &shader, T
                 float depth = w0 * z0 + w1 * z1 + w2 * z2;
                 int idx = x + y * width;
                 if (pipeline.depthbuffer[idx] < depth) {
-                    Vec3f bar{w0, w1, w2};
-                    auto [discard, color] = shader.fragment(bar);
+                    Vec3f barycentric{w0, w1, w2};
+                    auto [discard, color] = shader.fragment(barycentric);
                     if (discard) continue;
                     framebuffer.set(x, y, color);
                     pipeline.depthbuffer[idx] = depth;

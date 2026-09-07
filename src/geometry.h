@@ -2,6 +2,29 @@
 #include <cmath>
 #include <initializer_list>
 
+struct Vec2f {
+    float x, y;
+
+    Vec2f() : x(0), y(0) {}
+    Vec2f(float x, float y) : x(x), y(y) {}
+
+    Vec2f operator+(const Vec2f &v) const {
+        return Vec2f(x + v.x, y + v.y);
+    }
+
+    Vec2f operator*(float s) const {
+        return Vec2f(x * s, y * s);
+    }
+
+    float& operator[](int i) {
+        return i == 0 ? x : y;
+    }
+
+    const float& operator[](int i) const {
+        return i == 0 ? x : y;
+    }
+};
+
 struct Vec3f {
     float x, y, z;
 

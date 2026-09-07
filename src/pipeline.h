@@ -16,7 +16,7 @@ struct Pipeline {
 
 struct IShader {
     virtual ~IShader() = default;
-    virtual std::pair<bool, TGAColor> fragment(const Vec3f &bar) const = 0;
+    virtual std::pair<bool, TGAColor> fragment(const Vec3f &barycentric) const = 0;
 };
 
 void rasterize(Pipeline &pipeline, const Vec4f clip[3], const IShader &shader, TGAImage &framebuffer);
